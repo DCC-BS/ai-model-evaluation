@@ -1,35 +1,33 @@
 # Model lifecycle
 
-This page describes how a model enters the KDKP, how it is replaced and how we record the decision. The DCC AI team runs this process. A governance board for model decisions is being established.
+This page explains how a model comes onto the KDKP, how we replace it, and what we write down along the way. The DCC AI team runs this process. We are setting up a governance board for model decisions.
 
-## Cadence
+## How often we review
 
-We review models every 6 to 12 months. We assume a model that is a year old has been overtaken by newer open models, so we do not wait for a failure to look at alternatives.
+Every 6 to 12 months we compare our models with what is newly available. We assume that after about a year, newer open models will do the same job better. So we start looking before something breaks.
 
-## Steps
+## How a switch works
 
-1. **Candidate.** A new model is proposed. It must pass the [hard gates](selection-standard.md#hard-gates).
-2. **Evaluation.** We run layers 1 to 4 from [eval-layers.md](eval-layers.md): public benchmarks, our own benchmarks, app and API evals, load tests.
-3. **Transition phase.** The old and the new model run side by side. Apps and processes adapt. We compare the two and collect what we see in real use.
-4. **Cutover.** Apps switch to the new API URL. The old model is deactivated first and retired later.
+1. **Candidate.** Someone proposes a new model. It has to pass the [five basic checks](selection-standard.md#the-five-basic-checks).
+2. **Testing.** We run rounds 1 to 4 from [eval-layers.md](eval-layers.md): public rankings, our own tests, tests in our apps and load tests.
+3. **Running both.** The old and the new model run side by side for a while. Apps and workflows get adjusted, and we compare the two in real use.
+4. **Switching over.** The apps move to the new model's API URL. We first switch the old model off, and remove it completely some time later.
 
-## Rollback
+## Going back
 
-Rollback is a real outcome of the transition phase. In one case a model was deactivated because its reasoning traces were far longer than the tasks needed. The status is recorded in the public [model catalog](https://dcc-bs.github.io/documentation/infrastructure/models).
+Sometimes we go back to the old model. Once we switched off a new model because it wrote long chains of reasoning for tasks that needed a short answer. The public [model list](https://dcc-bs.github.io/documentation/infrastructure/models) shows its status.
 
-## Records
+## What we write down
 
-We keep these records:
-
-- Active, deactivated and retired status in the public model catalog.
+- The status of each model (in use, switched off or removed) in the public model list.
 - An internal page.
-- The infrastructure change history.
-- Load-test results.
-- Evaluation result history, for example for speech-to-text, deep research and the decision-model comparison.
-- A Model Decision Record for each model change. See [decision-record-template.md](decision-record-template.md).
+- The change history of our infrastructure.
+- Load test results.
+- Earlier test results, for example for speech-to-text, deep research and the comparison of decision models.
+- A decision record for each model change. See [decision-record-template.md](decision-record-template.md).
 
-Most of these are private. We publish that they exist and what they contain, not their contents.
+Most of these records are internal. The template shows what they contain.
 
-## Gaps
+## What we still need to improve
 
-At the last model switch we did not capture every relevant metric. The Model Decision Record asks for all relevant metrics per layer so that this does not repeat.
+When we last switched models, we didn't record every measurement we should have. The decision record now asks for all of them, round by round.

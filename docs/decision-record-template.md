@@ -1,35 +1,35 @@
-# Model Decision Record
+# Model decision record
 
-We write one record for each model change. Our records are private and are kept on an internal page or in a private repository. This is the template. Copy it, fill it in and keep the result where your team keeps decisions.
+We fill in one record for each model change and keep it on an internal page or in a private repository. Below is the empty template. Copy it, fill it in, and keep it wherever your team keeps its decisions.
 
-## Change and motivation
+## What changes and why
 
-Why is this change happening now? Name the model being replaced or added.
+Why does this change happen now? Name the model you replace or add.
 
-## Candidates considered
+## Models considered
 
-List every candidate. For each, record the result of the five [hard gates](selection-standard.md#hard-gates): GPU fit, one server, vLLM, licence, Hugging Face.
+List every model you looked at. For each one, note how it did in the [five basic checks](selection-standard.md#the-five-basic-checks): fits on the GPUs, runs on one server, runs on vLLM, licence, published on Hugging Face.
 
-## Evaluation per layer
+## Test results per round
 
-For each of the layers in [eval-layers.md](eval-layers.md), link to the run and list all relevant metrics, not only the headline number. Note which metrics were not measured and why.
+For each round in [eval-layers.md](eval-layers.md), link to the test run and list every measurement that matters, including the minor ones. Write down what you didn't measure, and why.
 
 ## Load tests
 
-Link to the load-test results before and after the change.
+Link to the load test results from before and after the change.
 
-## Transition
+## Running both models
 
-When did the old and new model run side by side? What issues did we see?
+When did the old and the new model run side by side? What problems came up?
 
-## Rollback criteria
+## When we would go back
 
-What would make us roll back? Write this before the transition starts.
+What would make you switch back to the old model? Write this down before both models start running side by side.
 
 ## Decision
 
-What was decided, by whom and on what date?
+What did you decide, who decided, and on what date?
 
-## Sign-off
+## Approval
 
-Governance board sign-off, once a board exists. Leave empty until then.
+Approval by the governance board, once the board exists. Leave this empty until then.
