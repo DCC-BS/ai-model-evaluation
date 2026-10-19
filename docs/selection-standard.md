@@ -10,7 +10,7 @@ The DCC AI team selects and evaluates all models on the KDKP. A governance board
 
 A candidate that fails one gate is dropped. We do not trade a failed gate against a good benchmark score.
 
-1. **Fits our GPUs.** Weights plus KV cache for the target sequence length and concurrency must fit on our hardware. Today that is the H100 80 GB. An H200 NVL 141 GB is on the roadmap.
+1. **Fits our GPUs.** Weights plus KV cache for the target sequence length and concurrency must fit on our hardware. Today that is the H100 NVL 94 GB. An H200 NVL 141 GB is on the roadmap.
 2. **Fits one server.** We do not serve one model across several servers with vLLM, because cross-server parallelism costs latency and speed. Tensor parallelism across the GPUs inside one server is fine. Multi-server serving is not.
 3. **Served by vLLM.** This gives us one way to serve models and an OpenAI-compatible API. There is one documented exception: speech-to-text runs on FasterWhisper with BentoML. STT candidates without vLLM support, for example NeMo models, can still be benchmarked. They need a separate serving decision before they can run on the platform.
 4. **Permissive licence.** The licence must allow our usage scenarios.
