@@ -1,0 +1,47 @@
+[project]
+name = "asr-eval"
+version = "0.2.0"
+description = "ASR model benchmarking suite – evaluate WER, CER and BLEU across different speech-to-text APIs"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "jiwer>=3.1.0",
+    "matplotlib>=3.9.0",
+    "openai>=1.63.2",
+    "pandas>=2.2.0",
+    "pyyaml>=6.0",
+    "sacrebleu>=2.5.1",
+]
+
+[project.optional-dependencies]
+sample = [
+    "datasets>=3.0.0",
+    "soundfile>=0.13.1",
+]
+
+[dependency-groups]
+dev = [
+    "numpy>=1.26",
+    "pytest>=8",
+    "soundfile>=0.13.1",
+]
+
+[project.scripts]
+asr-eval = "asr_eval.evaluate:main"
+asr-bench = "asr_eval.suite:main"
+asr-plot = "asr_eval.plot:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["asr_eval", "asr_eval.pipelines"]
+
+[tool.uv]
+package = true
+exclude-newer = "1 week"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

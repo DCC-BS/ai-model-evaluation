@@ -1,0 +1,73 @@
+# Example benchmark suite. Run with:  asr-bench benchmark.example.yaml
+#
+# Runs execute strictly one after another. For each run with a `server` block
+# the suite starts that server, waits until it answers /v1/models, evaluates,
+# then tears the container down (freeing VRAM) before the next run starts.
+#
+# Drop the `server` block for any model whose server you start yourself.
+
+defaults:
+  api_url: http://localhost:8000/v1
+  data_dir: ./data
+  args:
+    language: de            # shared kwarg; ignored by pipelines that don't take it
+
+runs:
+  - name: voxtral
+    pipeline: openai_api
+    model: RedHatAI/Voxtral-Small-24B-2507-FP8-dynamic
+    server:
+      script: servers/start_voxtral.sh
+      container: voxtral-vllm
+      ready_timeout: 900
+
+  - name: granite
+    pipeline: openai_api
+    model: ibm-granite/granite-4.0-1b-speech
+    server:
+      script: servers/start_granite.sh
+      container: granite-vllm
+      ready_timeout: 900
+
+  - name: granite-plus
+    pipeline: openai_api
+    model: ibm-granite/granite-speech-4.1-2b-plus   # needs vLLM v0.23.0+
+    server:
+      script: servers/start_granite_plus.sh
+      container: granite-plus-vllm
+      ready_timeout: 900
+
+  - name: parakeet-v3
+    pipeline: openai_api   # served via the NeMo OpenAI shim (no native vLLM)
+    model: nvidia/parakeet-tdt-0.6b-v3
+    server:
+      script: servers/start_parakeet.sh
+      container: parakeet-nemo
+      ready_timeout: 900
+
+  - name: nemotron-asr
+    pipeline: openai_api   # served via the NeMo OpenAI shim (no native vLLM)
+    model: nvidia/nemotron-3.5-asr-streaming-0.6b
+    server:
+      script: servers/start_nemotron_asr.sh
+      container: nemotron-asr-nemo
+      ready_timeout: 900
+
+  - name: vibevoice
+    pipeline: vibevoice     # ignores the shared `language` kwarg from defaults
+    server:
+      script: servers/start_vibe_voice.sh
+      container: vibevoice-vllm
+      ready_timeout: 900
+
+  - name: moss-transcribe-diarize
+    pipeline: openai_api
+    model: OpenMOSS-Team/MOSS-Transcribe-Diarize
+    args:
+      response_format: json
+      temperature: 0
+      post_process: moss   # strips MOSS's [start][Sxx]text[end] markers
+    server:
+      script: servers/start_moss_transcribe_diarize.sh
+      container: moss-transcribe-diarize-vllm
+      ready_timeout: 900

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fail the commit if the public-safety scan finds anything.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+exec uv run python scripts/check_public_safety.py .

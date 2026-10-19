@@ -1,0 +1,16 @@
+[project]
+name = "qwen-tts"
+version = "0.1.0"
+description = "Qwen3-TTS demo harness for structured listening tests"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gradio>=5.50.0",
+    "httpx>=0.28.1",
+    "numpy>=2.2.6",
+    "vllm>=0.14.0",
+    "vllm-omni>=0.14.0",
+]
+
+[tool.uv]
+exclude-newer = "1 week"

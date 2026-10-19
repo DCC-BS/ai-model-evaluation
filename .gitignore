@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+# Project
+data/
+results/
+predictions/
+*.wav
+*.mp3
+.env
+__marimo__/
+.env.*
+*.m4a
+.DS_Store
