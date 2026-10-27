@@ -8,7 +8,7 @@ dependencies = [
     "gradio>=5.50.0",
     "httpx>=0.28.1",
     "numpy>=2.2.6",
-    "vllm>=0.14.0",
+    "vllm==0.32.0",
     "vllm-omni>=0.14.0",
 ]
 

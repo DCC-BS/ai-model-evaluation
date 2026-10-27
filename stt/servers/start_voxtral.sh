@@ -11,7 +11,7 @@ docker run -d --rm \
   -e "HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}" \
   -e "LD_LIBRARY_PATH=/lib/x86_64-linux-gnu" \
   --entrypoint bash \
-  vllm/vllm-openai:v0.23.0 \
+  vllm/vllm-openai:v0.32.0 \
   -c 'pip install --no-cache-dir soundfile && exec vllm serve \
     RedHatAI/Voxtral-Small-24B-2507-FP8-dynamic \
     --tokenizer_mode mistral \
