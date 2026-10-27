@@ -29,7 +29,7 @@ docker run -d --gpus all --name "$CONTAINER_NAME" \
   -v "$VIBEVOICE_DIR":/app \
   -w /app \
   --entrypoint bash \
-  vllm/vllm-openai:v0.14.1 \
+  vllm/vllm-openai:v0.32.0 \
   -c "python3 /app/vllm_plugin/scripts/start_server.py --tp 2 --gpu-memory-utilization 0.92 --max-model-len 65536 --max-num-seqs 1"
 
 echo "Container '${CONTAINER_NAME}' started. Logs: docker logs -f ${CONTAINER_NAME}"
