@@ -61,16 +61,17 @@ declare -A MODEL_PORT=(
 
 # Use nightly for models that need latest transformers / custom architectures
 declare -A MODEL_IMAGE=(
-    [olmocr]="vllm/vllm-openai:v0.14.0"
-    [glm-ocr]="vllm/vllm-openai:cu130-nightly"
-    [paddleocr]="vllm/vllm-openai:cu130-nightly"
-    [deepseek-ocr]="vllm/vllm-openai:cu130-nightly"
-    [lighton-ocr]="vllm/vllm-openai:v0.15.1-cu130"
-    [dots-ocr]="vllm/vllm-openai:v0.15.1-cu130"
+    [olmocr]="vllm/vllm-openai:v0.32.0"
+    [glm-ocr]="vllm/vllm-openai:v0.32.0"
+    [paddleocr]="vllm/vllm-openai:v0.32.0"
+    [deepseek-ocr]="vllm/vllm-openai:v0.32.0"
+    [lighton-ocr]="vllm/vllm-openai:v0.32.0"
+    [dots-ocr]="vllm/vllm-openai:v0.32.0"
+    # Tested on v0.31.0
     [lighton-ocr-3]="vllm/vllm-openai:v0.31.0"
+    [paddleocr-1.6]="vllm/vllm-openai:v0.31.0"
     # The Nemotron plugin pins vllm==0.26.0 (supported range 0.25-0.32)
     [nemotron-parse]="vllm/vllm-openai:v0.26.0"
-    [paddleocr-1.6]="vllm/vllm-openai:v0.31.0"
 )
 
 # Optional setup commands run inside the container before vLLM starts.

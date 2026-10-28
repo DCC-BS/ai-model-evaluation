@@ -8,7 +8,7 @@ dependencies = [
     "gradio>=5.50.0",
     "httpx>=0.28.1",
     "numpy>=2.2.6",
-    "vllm>=0.14.0",
+    "vllm==0.32.0",
     "vllm-omni>=0.14.0",
 ]
 
@@ -18,4 +18,6 @@ exclude-newer = "P7D"
 # TEMPORARY until 2026-10-29: certifi skip the cooldown entirely (P0D), so the locked
 # security fixes don't get downgraded. The weekly dependency routine removes only these temporary
 # entries once the locked versions are 7 days old; Renovate's 14-day minimum age still applies.
-exclude-newer-package = { certifi = "P0D" }
+# TEMPORARY until 2026-10-29: brotli 1.2.1 fix CVE-2026-111497 (Brotli decoder) and skip the cooldown (P0D).
+# The weekly dependency routine removes these entries once the locked versions are 7 days old.
+exclude-newer-package = { certifi = "P0D", brotli = "P0D" }
