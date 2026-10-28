@@ -10,6 +10,7 @@ set -euo pipefail
 #   ./run_benchmark.sh all --limit 100 --concurrency 8
 #
 # Model keys: olmocr  glm-ocr  paddleocr  deepseek-ocr  lighton-ocr  dots-ocr
+#             lighton-ocr-3  nemotron-parse  paddleocr-1.6
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,6 +38,9 @@ Model keys:
   deepseek-ocr  deepseek-ai/DeepSeek-OCR-2         (port 8004)
   lighton-ocr   lightonai/LightOnOCR-2-1B          (port 8005)
   dots-ocr      rednote-hilab/dots.ocr              (port 8006)
+  lighton-ocr-3 lightonai/LightOnOCR-3-4B          (port 8007)
+  nemotron-parse nvidia/Nemotron-3.5-Parse         (port 8008)
+  paddleocr-1.6 PaddlePaddle/PaddleOCR-VL-1.6      (port 8009)
 
 Extra options (forwarded to eval_ocr.py):
   --limit N         Limit dataset samples (for quick testing)
@@ -65,7 +69,7 @@ shift
 EVAL_EXTRA_ARGS=("$@")
 
 # Validate model key early
-VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr all"
+VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 all"
 if ! echo "$VALID_KEYS" | grep -qw "$MODEL_KEY"; then
     err "Unknown model key: $MODEL_KEY"
     err "Valid keys: $VALID_KEYS"

@@ -27,7 +27,7 @@ import re
 import string
 import time
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -55,6 +55,10 @@ class OCRModelConfig:
     temperature: float = 0.1
     image_first: bool = False
     prompt_prefix: str = ""
+    # Extra sampling parameters sent as-is in the request body (vLLM extensions)
+    extra_body: dict = field(default_factory=dict)
+    # Regex for markup the model emits around the text (boxes, classes); removed before scoring
+    strip_pattern: Optional[str] = None
 
     @property
     def api_url(self) -> str:
@@ -106,6 +110,33 @@ MODEL_CONFIGS: dict[str, OCRModelConfig] = {
         max_tokens=16384,
         image_first=True,
         prompt_prefix="<|img|><|imgpad|><|endofimg|>",
+    ),
+    "lighton-ocr-3": OCRModelConfig(
+        key="lighton-ocr-3",
+        hf_name="lightonai/LightOnOCR-3-4B",
+        port=8007,
+        prompt=None,  # empty prompt = transcription only ("grounding" adds boxes)
+        max_tokens=4096,
+        temperature=0.2,
+        extra_body={"top_p": 0.9},
+    ),
+    "nemotron-parse": OCRModelConfig(
+        key="nemotron-parse",
+        hf_name="nvidia/Nemotron-3.5-Parse",
+        port=8008,
+        prompt="</s><s><predict_bbox><predict_classes><output_markdown><predict_text_in_pic>",
+        max_tokens=8744,
+        temperature=0.0,
+        extra_body={"top_k": 1, "repetition_penalty": 1.1, "skip_special_tokens": False},
+        # Output is <x_..><y_..>text<x_..><y_..><class_..> per region
+        strip_pattern=r"<x_[\d.]+><y_[\d.]+>|<class_[^>]+>|</?s>",
+    ),
+    "paddleocr-1.6": OCRModelConfig(
+        key="paddleocr-1.6",
+        hf_name="PaddlePaddle/PaddleOCR-VL-1.6",
+        port=8009,
+        prompt="OCR:",
+        max_tokens=512,
     ),
 }
 
@@ -243,6 +274,7 @@ class OCREvaluator:
                 "messages": messages,
                 "max_tokens": config.max_tokens,
                 "temperature": config.temperature,
+                **config.extra_body,
             }
             try:
                 resp = await client.post(
@@ -252,8 +284,11 @@ class OCREvaluator:
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                content = data["choices"][0]["message"]["content"]
-                return (content or "").strip()
+                content = data["choices"][0]["message"]["content"] or ""
+                if config.strip_pattern:
+                    content = re.sub(config.strip_pattern, " ", content)
+                    content = re.sub(r"\s+", " ", content)
+                return content.strip()
             except Exception as exc:
                 # Return empty string on failure so metrics still compute
                 print(f"  [WARN] Inference failed: {exc}")

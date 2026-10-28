@@ -10,10 +10,13 @@ set -euo pipefail
 #   ./serve_models.sh status                  Show running OCR containers
 #
 # Model keys: olmocr  glm-ocr  paddleocr  deepseek-ocr  lighton-ocr  dots-ocr
+#             lighton-ocr-3  nemotron-parse  paddleocr-1.6
 # =============================================================================
 
 HF_CACHE="${HF_HOME:-${HOME}/.cache/huggingface}"
-HEALTH_TIMEOUT=300  # seconds to wait for the model to become healthy
+OCR_GPU="${OCR_GPU:-all}"   # docker --gpus value: "all" or a device index such as 1
+VLLM_MEMORY="${VLLM_MEMORY:-}"  # --gpu-memory-utilization for every model; empty keeps each model's own
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-300}"  # seconds to wait for the model to become healthy
 
 # ---------------------------------------------------------------------------
 # Model definitions
@@ -27,6 +30,9 @@ declare -A MODEL_HF_NAME=(
     [deepseek-ocr]="deepseek-ai/DeepSeek-OCR-2"
     [lighton-ocr]="lightonai/LightOnOCR-2-1B"
     [dots-ocr]="rednote-hilab/dots.ocr"
+    [lighton-ocr-3]="lightonai/LightOnOCR-3-4B"
+    [nemotron-parse]="nvidia/Nemotron-3.5-Parse"
+    [paddleocr-1.6]="PaddlePaddle/PaddleOCR-VL-1.6"
 )
 
 declare -A MODEL_CONTAINER=(
@@ -36,6 +42,9 @@ declare -A MODEL_CONTAINER=(
     [deepseek-ocr]="ocr-deepseek"
     [lighton-ocr]="ocr-lighton"
     [dots-ocr]="ocr-dotsocr"
+    [lighton-ocr-3]="ocr-lighton3"
+    [nemotron-parse]="ocr-nemotron-parse"
+    [paddleocr-1.6]="ocr-paddleocr16"
 )
 
 declare -A MODEL_PORT=(
@@ -45,6 +54,9 @@ declare -A MODEL_PORT=(
     [deepseek-ocr]=8004
     [lighton-ocr]=8005
     [dots-ocr]=8006
+    [lighton-ocr-3]=8007
+    [nemotron-parse]=8008
+    [paddleocr-1.6]=8009
 )
 
 # Use nightly for models that need latest transformers / custom architectures
@@ -55,12 +67,19 @@ declare -A MODEL_IMAGE=(
     [deepseek-ocr]="vllm/vllm-openai:v0.32.0"
     [lighton-ocr]="vllm/vllm-openai:v0.32.0"
     [dots-ocr]="vllm/vllm-openai:v0.32.0"
+    # Tested on v0.31.0
+    [lighton-ocr-3]="vllm/vllm-openai:v0.31.0"
+    [paddleocr-1.6]="vllm/vllm-openai:v0.31.0"
+    # The Nemotron plugin pins vllm==0.26.0 (supported range 0.25-0.32)
+    [nemotron-parse]="vllm/vllm-openai:v0.26.0"
 )
 
 # Optional setup commands run inside the container before vLLM starts.
 # When set, the entrypoint is overridden to: bash -c "<setup> && exec vllm serve ..."
 declare -A MODEL_SETUP=(
     [glm-ocr]="uv pip install --system --upgrade transformers"
+    # The vLLM plugin ships inside the model repo: download it at the pinned revision and install it
+    [nemotron-parse]="python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('nvidia/Nemotron-3.5-Parse', revision='e7ea79242a87ea0ad3919b672bfedb429a683206', local_dir='/root/.cache/huggingface/nemotron-3.5-parse')\" && uv pip install --system '/root/.cache/huggingface/nemotron-3.5-parse[vllm]'"
 )
 
 # Model-specific vLLM flags (space-separated)
@@ -71,9 +90,14 @@ declare -A MODEL_FLAGS=(
     [deepseek-ocr]="--trust-remote-code"
     [lighton-ocr]="--trust-remote-code --limit-mm-per-prompt {\"image\":1} --no-enable-prefix-caching --mm-processor-cache-gb 0"
     [dots-ocr]="--trust-remote-code --chat-template-content-format string --gpu-memory-utilization 0.95"
+    [lighton-ocr-3]="--trust-remote-code --max-model-len 16384 --limit-mm-per-prompt {\"image\":1} --default-chat-template-kwargs {\"enable_thinking\":false}"
+    # Flags from the model card minus --attention-config flash_attn_version 3, which needs a Hopper GPU
+    # (it starts through the setup branch, where bash -c parses the flags again: hence the quoted JSON)
+    [nemotron-parse]="--trust-remote-code --revision e7ea79242a87ea0ad3919b672bfedb429a683206 --dtype bfloat16 --max-model-len 16384 --max-num-seqs 64 --max-num-batched-tokens 16384 --no-enable-prefix-caching --limit-mm-per-prompt '{\"image\":1}' --chat-template /root/.cache/huggingface/nemotron-3.5-parse/chat_template.jinja"
+    [paddleocr-1.6]="--trust-remote-code --no-enable-prefix-caching --mm-processor-cache-gb 0"
 )
 
-ALL_MODELS=( olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr )
+ALL_MODELS=( olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 )
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -96,6 +120,9 @@ Model keys:
   deepseek-ocr  deepseek-ai/DeepSeek-OCR-2         (port 8004)
   lighton-ocr   lightonai/LightOnOCR-2-1B          (port 8005)
   dots-ocr      rednote-hilab/dots.ocr              (port 8006)
+  lighton-ocr-3 lightonai/LightOnOCR-3-4B          (port 8007)
+  nemotron-parse nvidia/Nemotron-3.5-Parse         (port 8008)
+  paddleocr-1.6 PaddlePaddle/PaddleOCR-VL-1.6      (port 8009)
 EOF
     exit 1
 }
@@ -154,6 +181,9 @@ start_model() {
     local image="${MODEL_IMAGE[$key]}"
     local flags="${MODEL_FLAGS[$key]}"
     local setup="${MODEL_SETUP[$key]:-}"
+    [[ -n "$VLLM_MEMORY" ]] && flags="$flags --gpu-memory-utilization $VLLM_MEMORY"
+    local gpus="$OCR_GPU"
+    [[ "$gpus" == all ]] || gpus="device=$gpus"
 
     # Stop existing container if running
     if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
@@ -171,7 +201,7 @@ start_model() {
         # Override entrypoint to run setup commands before vLLM starts
         docker run -d \
             --name "$container" \
-            --gpus all \
+            --gpus "$gpus" \
             --ipc=host \
             -p "${port}:8000" \
             -v "${HF_CACHE}:/root/.cache/huggingface" \
@@ -184,7 +214,7 @@ start_model() {
     else
         docker run -d \
             --name "$container" \
-            --gpus all \
+            --gpus "$gpus" \
             --ipc=host \
             -p "${port}:8000" \
             -v "${HF_CACHE}:/root/.cache/huggingface" \
