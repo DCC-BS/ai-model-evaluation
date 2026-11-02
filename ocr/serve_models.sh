@@ -10,7 +10,7 @@ set -euo pipefail
 #   ./serve_models.sh status                  Show running OCR containers
 #
 # Model keys: olmocr  glm-ocr  paddleocr  deepseek-ocr  lighton-ocr  dots-ocr
-#             lighton-ocr-3  nemotron-parse  paddleocr-1.6
+#             lighton-ocr-3  nemotron-parse  paddleocr-1.6  unlimited-ocr-2
 # =============================================================================
 
 HF_CACHE="${HF_HOME:-${HOME}/.cache/huggingface}"
@@ -33,6 +33,7 @@ declare -A MODEL_HF_NAME=(
     [lighton-ocr-3]="lightonai/LightOnOCR-3-4B"
     [nemotron-parse]="nvidia/Nemotron-3.5-Parse"
     [paddleocr-1.6]="PaddlePaddle/PaddleOCR-VL-1.6"
+    [unlimited-ocr-2]="baidu/Unlimited-OCR-2"
 )
 
 declare -A MODEL_CONTAINER=(
@@ -45,6 +46,7 @@ declare -A MODEL_CONTAINER=(
     [lighton-ocr-3]="ocr-lighton3"
     [nemotron-parse]="ocr-nemotron-parse"
     [paddleocr-1.6]="ocr-paddleocr16"
+    [unlimited-ocr-2]="ocr-unlimited2"
 )
 
 declare -A MODEL_PORT=(
@@ -57,6 +59,7 @@ declare -A MODEL_PORT=(
     [lighton-ocr-3]=8007
     [nemotron-parse]=8008
     [paddleocr-1.6]=8009
+    [unlimited-ocr-2]=8010
 )
 
 # Use nightly for models that need latest transformers / custom architectures
@@ -72,7 +75,12 @@ declare -A MODEL_IMAGE=(
     [paddleocr-1.6]="vllm/vllm-openai:v0.31.0"
     # The Nemotron plugin pins vllm==0.26.0 (supported range 0.25-0.32)
     [nemotron-parse]="vllm/vllm-openai:v0.26.0"
+    # vLLM does not run v2 yet (vllm-project/vllm#64016): served by SGLang with Baidu's patched wheel
+    [unlimited-ocr-2]="lmsysorg/sglang:v0.5.20"
 )
+
+# Pinned model revisions (the setup commands download code from these)
+UNLIMITED_OCR_2_REVISION="0480966938291445591f69f08a13b041c073a96a"
 
 # Optional setup commands run inside the container before vLLM starts.
 # When set, the entrypoint is overridden to: bash -c "<setup> && exec vllm serve ..."
@@ -80,6 +88,14 @@ declare -A MODEL_SETUP=(
     [glm-ocr]="uv pip install --system --upgrade transformers"
     # The vLLM plugin ships inside the model repo: download it at the pinned revision and install it
     [nemotron-parse]="python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('nvidia/Nemotron-3.5-Parse', revision='e7ea79242a87ea0ad3919b672bfedb429a683206', local_dir='/root/.cache/huggingface/nemotron-3.5-parse')\" && uv pip install --system '/root/.cache/huggingface/nemotron-3.5-parse[vllm]'"
+    # Baidu's SGLang build ships in the model repo. The model card's no-repeat n-gram processor is
+    # serialised for eval_ocr.py, which sends it with each request.
+    [unlimited-ocr-2]="python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('baidu/Unlimited-OCR-2', revision='${UNLIMITED_OCR_2_REVISION}', local_dir='/root/.cache/huggingface/unlimited-ocr-2')\" && pip install --no-deps /root/.cache/huggingface/unlimited-ocr-2/wheel/sglang-0.5.20.dev13+g75b9b06b02-py3-none-any.whl && python3 -c \"from sglang.srt.sampling.custom_logit_processor import DeepseekOCRNoRepeatNGramLogitProcessor as P; open('/root/.cache/huggingface/unlimited-ocr-2/ngram_processor.txt', 'w').write(P.to_str())\""
+)
+
+# Servers other than vLLM: the command that replaces "vllm serve --model <name> --served-model-name <name> --port 8000"
+declare -A MODEL_SERVER=(
+    [unlimited-ocr-2]="python3 -m sglang.launch_server --model-path /root/.cache/huggingface/unlimited-ocr-2 --served-model-name baidu/Unlimited-OCR-2 --host 0.0.0.0 --port 8000"
 )
 
 # Model-specific vLLM flags (space-separated)
@@ -95,9 +111,11 @@ declare -A MODEL_FLAGS=(
     # (it starts through the setup branch, where bash -c parses the flags again: hence the quoted JSON)
     [nemotron-parse]="--trust-remote-code --revision e7ea79242a87ea0ad3919b672bfedb429a683206 --dtype bfloat16 --max-model-len 16384 --max-num-seqs 64 --max-num-batched-tokens 16384 --no-enable-prefix-caching --limit-mm-per-prompt '{\"image\":1}' --chat-template /root/.cache/huggingface/nemotron-3.5-parse/chat_template.jinja"
     [paddleocr-1.6]="--trust-remote-code --no-enable-prefix-caching --mm-processor-cache-gb 0"
+    # SGLang flags from the model card, without its CUDA-graph tuning for 64 parallel requests
+    [unlimited-ocr-2]="--chat-template unlimited-ocr --max-prefill-tokens 2048 --enable-custom-logit-processor --disable-radix-cache --mm-preprocess-cache-size-mb 0"
 )
 
-ALL_MODELS=( olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 )
+ALL_MODELS=( olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 unlimited-ocr-2 )
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -123,6 +141,7 @@ Model keys:
   lighton-ocr-3 lightonai/LightOnOCR-3-4B          (port 8007)
   nemotron-parse nvidia/Nemotron-3.5-Parse         (port 8008)
   paddleocr-1.6 PaddlePaddle/PaddleOCR-VL-1.6      (port 8009)
+  unlimited-ocr-2 baidu/Unlimited-OCR-2            (port 8010, SGLang)
 EOF
     exit 1
 }
@@ -181,7 +200,15 @@ start_model() {
     local image="${MODEL_IMAGE[$key]}"
     local flags="${MODEL_FLAGS[$key]}"
     local setup="${MODEL_SETUP[$key]:-}"
-    [[ -n "$VLLM_MEMORY" ]] && flags="$flags --gpu-memory-utilization $VLLM_MEMORY"
+    local server="${MODEL_SERVER[$key]:-vllm serve --model $hf_name --served-model-name $hf_name --port 8000}"
+    if [[ -n "$VLLM_MEMORY" && -n "${MODEL_SERVER[$key]:-}" ]]; then
+        flags="$flags --mem-fraction-static $VLLM_MEMORY"  # SGLang's name for the same share
+    elif [[ -n "$VLLM_MEMORY" ]]; then
+        flags="$flags --gpu-memory-utilization $VLLM_MEMORY"
+    fi
+    # The vLLM images need the host's libraries first; SGLang's image sets its own CUDA path
+    local lib_env=(-e "LD_LIBRARY_PATH=/lib/x86_64-linux-gnu")
+    [[ -n "${MODEL_SERVER[$key]:-}" ]] && lib_env=()
     local gpus="$OCR_GPU"
     [[ "$gpus" == all ]] || gpus="device=$gpus"
 
@@ -207,10 +234,10 @@ start_model() {
             -v "${HF_CACHE}:/root/.cache/huggingface" \
             -e "HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}" \
             -e "HF_TOKEN=${HF_TOKEN:-}" \
-            -e "LD_LIBRARY_PATH=/lib/x86_64-linux-gnu" \
+            "${lib_env[@]}" \
             --entrypoint /bin/bash \
             "$image" \
-            -c "$setup && exec vllm serve --model $hf_name --served-model-name $hf_name --port 8000 $flags"
+            -c "$setup && exec $server $flags"
     else
         docker run -d \
             --name "$container" \

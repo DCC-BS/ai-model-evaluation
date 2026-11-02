@@ -59,6 +59,8 @@ class OCRModelConfig:
     extra_body: dict = field(default_factory=dict)
     # Regex for markup the model emits around the text (boxes, classes); removed before scoring
     strip_pattern: Optional[str] = None
+    # SGLang custom logit processor, serialised by serve_models.sh into this file under the HF cache
+    logit_processor_file: Optional[str] = None
 
     @property
     def api_url(self) -> str:
@@ -138,7 +140,36 @@ MODEL_CONFIGS: dict[str, OCRModelConfig] = {
         prompt="OCR:",
         max_tokens=512,
     ),
+    # Served by SGLang; request fields from the model card's single-page example
+    "unlimited-ocr-2": OCRModelConfig(
+        key="unlimited-ocr-2",
+        hf_name="baidu/Unlimited-OCR-2",
+        port=8010,
+        prompt="<PAGE><image>Multi page parsing.",
+        max_tokens=8000,
+        temperature=0.0,
+        image_first=True,
+        extra_body={
+            "skip_special_tokens": False,
+            "images_config": {"crop_mode": True},
+            "custom_params": {
+                "ngram_size": 35,
+                "window_size": 128,
+                "page_token_id": 128827,
+                "eos_token_id": 1,
+                "max_page_tokens": 20000,
+            },
+        },
+        logit_processor_file="unlimited-ocr-2/ngram_processor.txt",
+        strip_pattern=r"<PAGE>|<[｜|][^>]*[｜|]>",
+    ),
 }
+
+
+def _logit_processor(name: str) -> str:
+    hf_home = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+    with open(os.path.join(hf_home, name), encoding="utf-8") as f:
+        return f.read()
 
 
 # =============================================================================
@@ -276,6 +307,8 @@ class OCREvaluator:
                 "temperature": config.temperature,
                 **config.extra_body,
             }
+            if config.logit_processor_file:
+                payload["custom_logit_processor"] = _logit_processor(config.logit_processor_file)
             try:
                 resp = await client.post(
                     f"{config.api_url}/chat/completions",

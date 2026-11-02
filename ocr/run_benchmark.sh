@@ -10,7 +10,7 @@ set -euo pipefail
 #   ./run_benchmark.sh all --limit 100 --concurrency 8
 #
 # Model keys: olmocr  glm-ocr  paddleocr  deepseek-ocr  lighton-ocr  dots-ocr
-#             lighton-ocr-3  nemotron-parse  paddleocr-1.6
+#             lighton-ocr-3  nemotron-parse  paddleocr-1.6  unlimited-ocr-2
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,6 +41,7 @@ Model keys:
   lighton-ocr-3 lightonai/LightOnOCR-3-4B          (port 8007)
   nemotron-parse nvidia/Nemotron-3.5-Parse         (port 8008)
   paddleocr-1.6 PaddlePaddle/PaddleOCR-VL-1.6      (port 8009)
+  unlimited-ocr-2 baidu/Unlimited-OCR-2            (port 8010, SGLang)
 
 Extra options (forwarded to eval_ocr.py):
   --limit N         Limit dataset samples (for quick testing)

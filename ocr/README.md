@@ -45,7 +45,7 @@ uv sync
 ./run_benchmark.sh all                 # every model, one after another
 ```
 
-Keys are defined in `serve_models.sh` and `eval_ocr.py`: `olmocr`, `glm-ocr`, `paddleocr`, `deepseek-ocr`, `lighton-ocr`, `dots-ocr`, `lighton-ocr-3`, `nemotron-parse`, `paddleocr-1.6`. Extra flags (`--limit`, `--concurrency`, `--timeout`, `--output`) go to `eval_ocr.py`.
+Keys are defined in `serve_models.sh` and `eval_ocr.py`: `olmocr`, `glm-ocr`, `paddleocr`, `deepseek-ocr`, `lighton-ocr`, `dots-ocr`, `lighton-ocr-3`, `nemotron-parse`, `paddleocr-1.6`, `unlimited-ocr-2`. Extra flags (`--limit`, `--concurrency`, `--timeout`, `--output`) go to `eval_ocr.py`.
 
 To run the steps yourself:
 
