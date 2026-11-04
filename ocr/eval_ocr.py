@@ -27,7 +27,7 @@ import re
 import string
 import time
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -59,6 +59,10 @@ class OCRModelConfig:
     extra_body: dict = field(default_factory=dict)
     # Regex for markup the model emits around the text (boxes, classes); removed before scoring
     strip_pattern: Optional[str] = None
+    # SGLang custom logit processor, serialised by serve_models.sh into this file under the HF cache
+    logit_processor_file: Optional[str] = None
+    # Paste each line onto a blank page of this size (pixels) first, for models that only parse whole pages
+    page_canvas: Optional[tuple[int, int]] = None
 
     @property
     def api_url(self) -> str:
@@ -138,7 +142,41 @@ MODEL_CONFIGS: dict[str, OCRModelConfig] = {
         prompt="OCR:",
         max_tokens=512,
     ),
+    # Served by SGLang; request fields from the model card's single-page example
+    "unlimited-ocr-2": OCRModelConfig(
+        key="unlimited-ocr-2",
+        hf_name="baidu/Unlimited-OCR-2",
+        port=8010,
+        prompt="<PAGE><image>Multi page parsing.",
+        max_tokens=8000,
+        temperature=0.0,
+        image_first=True,
+        extra_body={
+            "skip_special_tokens": False,
+            "images_config": {"crop_mode": True},
+            "custom_params": {
+                "ngram_size": 35,
+                "window_size": 128,
+                "page_token_id": 128827,
+                "eos_token_id": 1,
+                "max_page_tokens": 20000,
+            },
+        },
+        logit_processor_file="unlimited-ocr-2/ngram_processor.txt",
+        strip_pattern=r"<PAGE>|<BLOCK>[^<]*(?:<LEVEL\d+>)?[^<]*<FORK>|<CHILD>|<[｜|][^>]*[｜|]>",
+    ),
 }
+
+# Same server; a bare line crop comes back as one empty "image" block, so the line goes on a blank A4 page at 300 DPI
+MODEL_CONFIGS["unlimited-ocr-2-page"] = replace(
+    MODEL_CONFIGS["unlimited-ocr-2"], key="unlimited-ocr-2-page", page_canvas=(2480, 3508)
+)
+
+
+def _logit_processor(name: str) -> str:
+    hf_home = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+    with open(os.path.join(hf_home, name), encoding="utf-8") as f:
+        return f.read()
 
 
 # =============================================================================
@@ -276,6 +314,8 @@ class OCREvaluator:
                 "temperature": config.temperature,
                 **config.extra_body,
             }
+            if config.logit_processor_file:
+                payload["custom_logit_processor"] = _logit_processor(config.logit_processor_file)
             try:
                 resp = await client.post(
                     f"{config.api_url}/chat/completions",
@@ -344,7 +384,12 @@ class OCREvaluator:
         images_b64: list[str] = []
         ground_truths: list[str] = []
         for sample in dataset:
-            images_b64.append(self.image_to_base64(sample["image"]))
+            image = sample["image"]
+            if config.page_canvas:
+                page = Image.new("RGB", config.page_canvas, "white")
+                page.paste(image.convert("RGB"), (config.page_canvas[0] // 10, config.page_canvas[1] // 12))
+                image = page
+            images_b64.append(self.image_to_base64(image))
             ground_truths.append(sample["text"] or "")
 
         # Run inference with concurrency limit and ordered results

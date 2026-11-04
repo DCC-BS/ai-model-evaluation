@@ -45,7 +45,7 @@ uv sync
 ./run_benchmark.sh all                 # every model, one after another
 ```
 
-Keys are defined in `serve_models.sh` and `eval_ocr.py`: `olmocr`, `glm-ocr`, `paddleocr`, `deepseek-ocr`, `lighton-ocr`, `dots-ocr`, `lighton-ocr-3`, `nemotron-parse`, `paddleocr-1.6`. Extra flags (`--limit`, `--concurrency`, `--timeout`, `--output`) go to `eval_ocr.py`.
+Keys are defined in `serve_models.sh` and `eval_ocr.py`: `olmocr`, `glm-ocr`, `paddleocr`, `deepseek-ocr`, `lighton-ocr`, `dots-ocr`, `lighton-ocr-3`, `nemotron-parse`, `paddleocr-1.6`, `unlimited-ocr-2`, `unlimited-ocr-2-page`. Extra flags (`--limit`, `--concurrency`, `--timeout`, `--output`) go to `eval_ocr.py`.
 
 To run the steps yourself:
 
@@ -81,6 +81,10 @@ We did not test two more candidates. Their weights use a modified OpenRAIL-M lic
 
 The layout and pipeline candidates (Nemotron OCR v2, docling's Egret layout models, PP-OCRv6) run in the document benchmark linked under Related, not here.
 
+## Models tested in November 2026
+
+- **Unlimited-OCR-2** (`unlimited-ocr-2`, Baidu). Served by SGLang with Baidu's own wheel, as the model card says, not by vLLM. The model parses whole pages. A bare line crop comes back as one `image` block with no text, so `unlimited-ocr-2-page` pastes each line onto a blank A4 page first and shares the same server. Even then it does not replace GLM-OCR. It returns nothing for some lines, and on others it repeats a fragment ("2. 2. 2. ...") until it reaches the page token limit. Those loops make it far slower than the other models here. Baidu's transformers reference code gives the same answers for most lines, so the weaknesses come from the model, not from the SGLang server.
+
 ## Add a model
 
 1. Add an entry to `MODEL_CONFIGS` in `eval_ocr.py`: key, Hugging Face name, port and the prompt from the model card.
@@ -92,6 +96,7 @@ The layout and pipeline candidates (Nemotron OCR v2, docling's Egret layout mode
 - One dataset, handwriting only.
 - Prompts follow each model card. A different prompt can change a score, and we do not tune prompts per model.
 - `nemotron-parse` answers with a box and a class around each text region. `eval_ocr.py` strips that markup before scoring. Its vLLM plugin ships inside the model repository and pins vLLM 0.26.0, so the container installs it at start. The model card's FlashAttention 3 flag is left out because it needs a Hopper GPU.
+- `unlimited-ocr-2` needs the SGLang environment variables and flags from the model card (`serve_models.sh` sets them). Without them, requests with several pages hang.
 - Some models need a specific vLLM version. DeepSeek-OCR-2 uses a custom architecture that not every vLLM version supports. Check the model repository if its container exits at start.
 - If a container exits at start, look at `docker logs <container>`. Usual causes are too little GPU memory, a missing Hugging Face token for a gated model, or an unsupported architecture.
 
