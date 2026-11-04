@@ -1,6 +1,6 @@
 # Data policy
 
-This repository contains our test method and code. It contains no internal test data, no results and no model outputs.
+This repository contains our test method and code. It contains no internal test data, no result files and no model outputs. We publish the scores on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results) of our documentation.
 
 ## What data we use
 
@@ -10,9 +10,16 @@ This repository contains our test method and code. It contains no internal test 
 
 ## Why our data stays private
 
-Our recordings and documents contain personal data and the work of people who have not agreed to have it published. Transcripts and model outputs made from them contain the same information. So we publish neither the data nor the results.
+Our recordings and documents contain personal data and the work of people who have not agreed to have it published. Transcripts and model outputs made from them contain the same information. So we publish neither the data nor anything made from it item by item.
 
 This means you can't reproduce our internal numbers with this repository. You can run the same tests on your own data.
+
+## What we publish
+
+- **Tests on public or made-up data.** The full scores, so that you can repeat them.
+- **Tests on our own data.** One total per model over the whole test set, for example the word error rate over all recordings. No transcripts, no model outputs, no score of a single recording or document, and no breakdown into groups so small that they point to a person.
+
+A person on the team checks every number before it goes on the results page. The scores go on that page, not into this repository.
 
 ## Using your own data
 

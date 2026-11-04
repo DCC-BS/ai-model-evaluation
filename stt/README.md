@@ -20,7 +20,7 @@ A per-clip CSV (`results/predictions/<label>.csv`) keeps the reference, the pred
 
 ## Dataset
 
-Our own data is not published. It consists of internal recordings of structured and unstructured dictation and of meetings, with multiple speakers. It stays private because it contains real work conversations. The reasoning is in `docs/data-policy.md` at the repository root.
+Our own data is not published. It consists of internal recordings of structured and unstructured dictation and of meetings, with multiple speakers. It stays private because it contains real work conversations. The reasoning is in `docs/data-policy.md` at the repository root. The [test results page](https://dcc-bs.github.io/documentation/evaluation/results#speech-to-text) shows one total per model on this data.
 
 You can run the suite on your own data or on the public sample below.
 

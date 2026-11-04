@@ -1,6 +1,6 @@
 # AI model evaluation
 
-The Data Competence Center Basel-Stadt uses this repository to test AI models before they go into use. The DCC AI team chooses every model that runs on the KDKP, the canton's AI platform. Here we publish our rules, our steps and the test code for speech-to-text, OCR and text-to-speech, so that others can check our work and reuse it. The code for anonymisation and decision models will follow later. Our test data, scores and rankings stay private.
+The Data Competence Center Basel-Stadt uses this repository to test AI models before they go into use. The DCC AI team chooses every model that runs on the KDKP, the canton's AI platform. Here we publish our rules, our steps and the test code for speech-to-text, OCR and text-to-speech, so that others can check our work and reuse it. The code for anonymisation and decision models will follow later. The scores of every model we tested are on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results). Our own test data stays private. For tests on that data we publish one total per model.
 
 A plain-language overview is on the [documentation site](https://dcc-bs.github.io/documentation/evaluation/).
 

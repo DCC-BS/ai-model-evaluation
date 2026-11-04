@@ -68,7 +68,7 @@ All of these are git-ignored.
 
 ## Models tested in October 2026
 
-We added three models to the suite and compared them with GLM-OCR, which we already use. We publish the weaknesses we found, not the scores. None of the three replaces GLM-OCR.
+We added three models to the suite and compared them with GLM-OCR, which we already use. None of the three replaces GLM-OCR. The scores are on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results#reading-handwriting), and the weaknesses we found are below.
 
 - **LightOnOCR-3-4B** (`lighton-ocr-3`, Apache 2.0). Reads most lines well. It sometimes returns nothing for a line, and it cuts off the end of other lines. In our document benchmark it converts whole pages, which makes it much slower than GLM-OCR on long PDFs, and it recovers no table structure.
 - **Nemotron-3.5-Parse** (`nemotron-parse`, NVIDIA Open Model License). The model is built to parse whole pages, not single lines. On short handwriting lines it often invents text, and it wraps many lines in an empty LaTeX table with the text in one cell. `eval_ocr.py` strips the region boxes but not this table markup, so that markup also counts as errors. On large plan drawings it runs out of output tokens and returns nothing.
