@@ -23,7 +23,7 @@ Sometimes we go back to the old model. Once we switched off a new model because 
 - An internal page.
 - The change history of our infrastructure.
 - Load test results.
-- Earlier test results, for example for speech-to-text, deep research and the comparison of decision models.
+- Test results, for example for speech-to-text, deep research and the comparison of decision models. The scores are on the public [test results page](https://dcc-bs.github.io/documentation/evaluation/results). The result of each single recording or document stays internal.
 - A decision record for each model change. See [decision-record-template.md](decision-record-template.md).
 
 Most of these records are internal. The template shows what they contain.

@@ -12,4 +12,4 @@ General leaderboards do not tell us how a model handles our documents and rules.
 
 ## Status
 
-The comparison exists internally. No code, data or results here yet. We will publish the method, not the internal tasks or scores.
+The comparison exists internally. No code, data or results here yet. We will publish the method here and one total per model on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results), not the internal tasks.

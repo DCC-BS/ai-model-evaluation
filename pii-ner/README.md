@@ -12,4 +12,4 @@ For anonymisation, a missed entity is worse than a false alarm. A false positive
 
 ## Status
 
-No code, data or results here yet. We run this evaluation on our own data and will publish the method, not the data or scores.
+No code, data or results here yet. We run this evaluation on our own data. We will publish the method here and one total per model on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results), not the data.

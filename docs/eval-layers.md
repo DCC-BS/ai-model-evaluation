@@ -29,6 +29,6 @@ flowchart TD
 ## What these rounds can't show
 
 - Round 1 results come from other people's data. They help us find candidates, and we decide based on the later rounds.
-- Round 2 runs on our own data, which stays private. You can run the same code on your data, but you won't get our numbers. See [data-policy.md](data-policy.md).
+- Round 2 runs partly on our own data, which stays private. We publish one total per model on the [test results page](https://dcc-bs.github.io/documentation/evaluation/results). You can run the same code on your data, but you can't check our numbers. See [data-policy.md](data-policy.md).
 - For synthetic voices there is no automatic score. Round 2 for TTS is a listening checklist.
 - Round 5 has no test code. People watch how the model does in daily work, and we write it down in the [decision record](decision-record-template.md).
