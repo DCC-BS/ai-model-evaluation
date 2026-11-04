@@ -121,11 +121,13 @@ uv run asr-bench benchmark.example.yaml --keep-going   # continue after a failed
 
 ## Output
 
-- `results/asr_evaluation_results.csv`: one row per run, append-only.
+- `results/asr_evaluation_results.csv`: one row per run, append-only. Besides the scores it records the pipeline, the `--arg` values, the data folder, the predictions file and the commit of this repository. Files from older versions get the new columns, left empty, on the next run.
 - `results/predictions/<label>.csv`: per-clip reference, prediction, WER and CER.
 - `asr-plot` draws a WER/CER chart from the results CSV (`results/asr_metrics_plot.png`). Use `--top N` to limit it to N models.
 
 Both `results/` and `data/` are git-ignored.
+
+Set `AI_EVAL_RESULTS_DIR` to write to `$AI_EVAL_RESULTS_DIR/stt/` instead. We point it at a checkout of our private results repository, so that all runs from all machines end up in one place. `asr-plot` reads from the same folder.
 
 ## Add a model
 

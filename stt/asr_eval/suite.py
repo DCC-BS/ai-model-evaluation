@@ -37,7 +37,7 @@ from pathlib import Path
 import httpx
 import yaml
 
-from asr_eval.evaluate import build_pipeline
+from asr_eval.evaluate import build_pipeline, save_run
 
 
 def load_config(path: Path) -> dict:
@@ -122,8 +122,7 @@ async def run_one(run: dict) -> dict:
         results = await pipeline.evaluate()
         duration = datetime.datetime.now() - start
 
-        pipeline.write_results_to_csv(results)
-        pred_path = pipeline.write_predictions_csv(results, label=label)
+        pred_path = save_run(pipeline, results, run["pipeline"], run.get("args", {}), label=label)
         print(
             f"  ✓ WER={results['WER']:.4f} CER={results['CER']:.4f} "
             f"BLEU={results['BLEU']:.2f} ({duration}) → {pred_path}"

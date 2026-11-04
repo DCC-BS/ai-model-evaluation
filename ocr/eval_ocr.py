@@ -38,6 +38,20 @@ from datasets import load_dataset
 from PIL import Image
 from tqdm import tqdm
 
+
+def results_dir() -> str:
+    """``$AI_EVAL_RESULTS_DIR/ocr`` when set (the private results repository), else ``.``."""
+    root = os.environ.get("AI_EVAL_RESULTS_DIR")
+    return os.path.join(root, "ocr") if root else "."
+
+
+def default_sanity_dir() -> str:
+    """``$AI_EVAL_RESULTS_DIR/ocr/sanity_checks`` when set, else ``results/sanity_checks``."""
+    if os.environ.get("AI_EVAL_RESULTS_DIR"):
+        return os.path.join(results_dir(), "sanity_checks")
+    return os.path.join("results", "sanity_checks")
+
+
 # =============================================================================
 # Model configurations
 # =============================================================================
@@ -221,11 +235,11 @@ class OCREvaluator:
         self,
         concurrency: int = 4,
         timeout: float = 120.0,
-        sanity_dir: str = "results/sanity_checks",
+        sanity_dir: str | None = None,
     ):
         self.concurrency = concurrency
         self.timeout = timeout
-        self.sanity_dir = sanity_dir
+        self.sanity_dir = sanity_dir or default_sanity_dir()
         self._dataset = None
         self._sanity_indices: list[int] = []
 
@@ -516,8 +530,9 @@ def parse_args():
     parser.add_argument(
         "--output",
         type=str,
-        default="ocr_evaluation_results.csv",
-        help="Path to the output CSV file (default: ocr_evaluation_results.csv).",
+        default=os.path.join(results_dir(), "ocr_evaluation_results.csv"),
+        help="Path to the output CSV file (default: ocr_evaluation_results.csv, "
+        "under $AI_EVAL_RESULTS_DIR/ocr when set).",
     )
     parser.add_argument(
         "--concurrency",

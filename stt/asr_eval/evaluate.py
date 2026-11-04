@@ -28,6 +28,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import datetime
+import json
+import subprocess
+from pathlib import Path
 
 from asr_eval.pipelines import PIPELINES
 
@@ -97,14 +100,36 @@ def build_pipeline(pipeline: str, model: str | None, api_url: str, data_dir: str
         raise SystemExit(f"Cannot build '{pipeline}' pipeline: {exc}")
 
 
-async def run(args: argparse.Namespace) -> None:
-    pipeline = build_pipeline(
-        args.pipeline,
-        args.model,
-        args.api_url,
-        args.data_dir,
-        parse_kwargs(args.extra_args),
+def code_version() -> str:
+    """Commit of this checkout, with ``-dirty`` for local changes; empty outside git."""
+    try:
+        return subprocess.run(
+            ["git", "describe", "--always", "--dirty"],
+            cwd=Path(__file__).parent,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
+def save_run(pipeline, results: dict, pipeline_name: str, extra: dict, label: str | None = None) -> Path:
+    """Write the predictions CSV, then one results row that points to it."""
+    pred_path = pipeline.write_predictions_csv(results, label=label)
+    results.update(
+        pipeline=pipeline_name,
+        args=json.dumps(extra, ensure_ascii=False, sort_keys=True),
+        predictions=pred_path.name,
+        code_version=code_version(),
     )
+    pipeline.write_results_to_csv(results)
+    return pred_path
+
+
+async def run(args: argparse.Namespace) -> None:
+    extra = parse_kwargs(args.extra_args)
+    pipeline = build_pipeline(args.pipeline, args.model, args.api_url, args.data_dir, extra)
 
     print(f"Evaluating: {pipeline.model} via {args.pipeline} pipeline")
     print(f"API: {pipeline.api_url}")
@@ -115,8 +140,7 @@ async def run(args: argparse.Namespace) -> None:
     results = await pipeline.evaluate()
     duration = datetime.datetime.now() - start
 
-    pipeline.write_results_to_csv(results)
-    pred_path = pipeline.write_predictions_csv(results)
+    pred_path = save_run(pipeline, results, args.pipeline, extra)
 
     print()
     print(f"WER:  {results['WER']:.4f}")

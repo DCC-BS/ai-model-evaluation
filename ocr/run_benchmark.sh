@@ -14,8 +14,12 @@ set -euo pipefail
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESULTS_CSV="${SCRIPT_DIR}/ocr_evaluation_results.csv"
-RESULTS_PNG="${SCRIPT_DIR}/ocr_evaluation_results.png"
+# With AI_EVAL_RESULTS_DIR set, results go to the private results repository.
+RESULTS_DIR="${AI_EVAL_RESULTS_DIR:+${AI_EVAL_RESULTS_DIR}/ocr}"
+RESULTS_DIR="${RESULTS_DIR:-${SCRIPT_DIR}}"
+mkdir -p "$RESULTS_DIR"
+RESULTS_CSV="${RESULTS_DIR}/ocr_evaluation_results.csv"
+RESULTS_PNG="${RESULTS_DIR}/ocr_evaluation_results.png"
 
 log() { echo "[benchmark] $*"; }
 err() { echo "[benchmark] ERROR: $*" >&2; }

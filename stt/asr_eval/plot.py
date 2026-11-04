@@ -15,8 +15,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from asr_eval.base import results_dir
 
-DEFAULT_CSV = Path("results/asr_evaluation_results.csv")
+DEFAULT_CSV = results_dir() / "asr_evaluation_results.csv"
 
 
 def load_best_per_model(csv_path: Path) -> pd.DataFrame:
@@ -78,7 +79,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Plot ASR evaluation results.")
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV, help="Path to results CSV.")
     parser.add_argument("--top", type=int, default=None, help="Only plot top N models by WER.")
-    parser.add_argument("-o", "--output", type=Path, default=Path("results/asr_metrics_plot.png"))
+    parser.add_argument("-o", "--output", type=Path, default=results_dir() / "asr_metrics_plot.png")
     args = parser.parse_args()
 
     df = load_best_per_model(args.csv)
