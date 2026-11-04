@@ -27,7 +27,7 @@ import re
 import string
 import time
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -61,6 +61,8 @@ class OCRModelConfig:
     strip_pattern: Optional[str] = None
     # SGLang custom logit processor, serialised by serve_models.sh into this file under the HF cache
     logit_processor_file: Optional[str] = None
+    # Paste each line onto a blank page of this size (pixels) first, for models that only parse whole pages
+    page_canvas: Optional[tuple[int, int]] = None
 
     @property
     def api_url(self) -> str:
@@ -161,9 +163,14 @@ MODEL_CONFIGS: dict[str, OCRModelConfig] = {
             },
         },
         logit_processor_file="unlimited-ocr-2/ngram_processor.txt",
-        strip_pattern=r"<PAGE>|<[｜|][^>]*[｜|]>",
+        strip_pattern=r"<PAGE>|<BLOCK>[^<]*(?:<LEVEL\d+>)?[^<]*<FORK>|<CHILD>|<[｜|][^>]*[｜|]>",
     ),
 }
+
+# Same server; a bare line crop comes back as one empty "image" block, so the line goes on a blank A4 page at 300 DPI
+MODEL_CONFIGS["unlimited-ocr-2-page"] = replace(
+    MODEL_CONFIGS["unlimited-ocr-2"], key="unlimited-ocr-2-page", page_canvas=(2480, 3508)
+)
 
 
 def _logit_processor(name: str) -> str:
@@ -377,7 +384,12 @@ class OCREvaluator:
         images_b64: list[str] = []
         ground_truths: list[str] = []
         for sample in dataset:
-            images_b64.append(self.image_to_base64(sample["image"]))
+            image = sample["image"]
+            if config.page_canvas:
+                page = Image.new("RGB", config.page_canvas, "white")
+                page.paste(image.convert("RGB"), (config.page_canvas[0] // 10, config.page_canvas[1] // 12))
+                image = page
+            images_b64.append(self.image_to_base64(image))
             ground_truths.append(sample["text"] or "")
 
         # Run inference with concurrency limit and ordered results
