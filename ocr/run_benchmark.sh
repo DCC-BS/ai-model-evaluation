@@ -70,7 +70,7 @@ shift
 EVAL_EXTRA_ARGS=("$@")
 
 # Validate model key early
-VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 all"
+VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 unlimited-ocr-2 all"
 if ! echo "$VALID_KEYS" | grep -qw "$MODEL_KEY"; then
     err "Unknown model key: $MODEL_KEY"
     err "Valid keys: $VALID_KEYS"
