@@ -90,7 +90,8 @@ declare -A MODEL_SETUP=(
     [nemotron-parse]="python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('nvidia/Nemotron-3.5-Parse', revision='e7ea79242a87ea0ad3919b672bfedb429a683206', local_dir='/root/.cache/huggingface/nemotron-3.5-parse')\" && uv pip install --system '/root/.cache/huggingface/nemotron-3.5-parse[vllm]'"
     # Baidu's SGLang build ships in the model repo. The model card's no-repeat n-gram processor is
     # serialised for eval_ocr.py, which sends it with each request.
-    [unlimited-ocr-2]="python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('baidu/Unlimited-OCR-2', revision='${UNLIMITED_OCR_2_REVISION}', local_dir='/root/.cache/huggingface/unlimited-ocr-2')\" && pip install --no-deps /root/.cache/huggingface/unlimited-ocr-2/wheel/sglang-0.5.20.dev13+g75b9b06b02-py3-none-any.whl && python3 -c \"from sglang.srt.sampling.custom_logit_processor import DeepseekOCRNoRepeatNGramLogitProcessor as P; open('/root/.cache/huggingface/unlimited-ocr-2/ngram_processor.txt', 'w').write(P.to_str())\""
+    # The model card's server environment; a multi-page request hangs without it
+    [unlimited-ocr-2]="export SGLANG_UOCR_EANABLE_DOC_LIMIT=1 SGLANG_UOCR_DOC_GUNDAM_PAGE_WINDOW=10 SGLANG_UOCR_DOC_BASE_PAGE_WINDOW=10 SGLANG_UOCR_MAX_PAGE_TOKENS=20000 SGLANG_OPT_UOCR_SAM_REL_POS_BIAS_MB=64 SGLANG_UOCR_SHM_WRAP_MODEL_DATA=1 SGLANG_UOCR_SHM_WRAP_MIN_MB=1 SGLANG_VLM_CACHE_SIZE_MB=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('baidu/Unlimited-OCR-2', revision='${UNLIMITED_OCR_2_REVISION}', local_dir='/root/.cache/huggingface/unlimited-ocr-2')\" && pip install --no-deps /root/.cache/huggingface/unlimited-ocr-2/wheel/sglang-0.5.20.dev13+g75b9b06b02-py3-none-any.whl && python3 -c \"from sglang.srt.sampling.custom_logit_processor import DeepseekOCRNoRepeatNGramLogitProcessor as P; open('/root/.cache/huggingface/unlimited-ocr-2/ngram_processor.txt', 'w').write(P.to_str())\""
 )
 
 # Servers other than vLLM: the command that replaces "vllm serve --model <name> --served-model-name <name> --port 8000"
@@ -112,7 +113,7 @@ declare -A MODEL_FLAGS=(
     [nemotron-parse]="--trust-remote-code --revision e7ea79242a87ea0ad3919b672bfedb429a683206 --dtype bfloat16 --max-model-len 16384 --max-num-seqs 64 --max-num-batched-tokens 16384 --no-enable-prefix-caching --limit-mm-per-prompt '{\"image\":1}' --chat-template /root/.cache/huggingface/nemotron-3.5-parse/chat_template.jinja"
     [paddleocr-1.6]="--trust-remote-code --no-enable-prefix-caching --mm-processor-cache-gb 0"
     # SGLang flags from the model card, without its CUDA-graph tuning for 64 parallel requests
-    [unlimited-ocr-2]="--chat-template unlimited-ocr --max-prefill-tokens 2048 --enable-custom-logit-processor --disable-radix-cache --mm-preprocess-cache-size-mb 0"
+    [unlimited-ocr-2]="--chat-template unlimited-ocr --max-prefill-tokens 2048 --enable-custom-logit-processor --enable-streaming-session --allow-auto-truncate --disable-radix-cache --mm-preprocess-cache-size-mb 0"
 )
 
 ALL_MODELS=( olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 unlimited-ocr-2 )
