@@ -15,6 +15,16 @@ import jiwer
 from sacrebleu.metrics import BLEU
 
 
+def results_dir() -> Path:
+    """``$AI_EVAL_RESULTS_DIR/stt`` when set, else ``./results``.
+
+    Point AI_EVAL_RESULTS_DIR at a checkout of the private results repository
+    to keep every run in one place.
+    """
+    root = os.environ.get("AI_EVAL_RESULTS_DIR")
+    return Path(root) / "stt" if root else Path("results")
+
+
 class ASRPipeline(abc.ABC):
     """Subclass this to add a new ASR backend.
 
@@ -118,6 +128,7 @@ class ASRPipeline(abc.ABC):
             "evaluation_api": self.api_url,
             "model": self.model,
             **metrics,
+            "data_dir": self.data_dir,
             "audio_paths": audio_paths,
             "ground_truths": ground_truths,
             "predictions": predictions,
@@ -127,7 +138,7 @@ class ASRPipeline(abc.ABC):
     # CSV persistence
     # ------------------------------------------------------------------
 
-    RESULTS_CSV = Path("results/asr_evaluation_results.csv")
+    RESULTS_CSV = results_dir() / "asr_evaluation_results.csv"
     CSV_FIELDS = [
         "evaluation_date",
         "num_test_cases",
@@ -136,19 +147,47 @@ class ASRPipeline(abc.ABC):
         "WER",
         "CER",
         "BLEU",
+        # Run settings, so a row can be traced back and repeated.
+        "pipeline",
+        "args",
+        "data_dir",
+        "predictions",
+        "code_version",
     ]
 
-    PREDICTIONS_DIR = Path("results/predictions")
+    PREDICTIONS_DIR = results_dir() / "predictions"
     PREDICTION_FIELDS = ["audio_path", "ground_truth", "prediction", "WER", "CER"]
 
     def write_results_to_csv(self, results: dict) -> None:
         self.RESULTS_CSV.parent.mkdir(parents=True, exist_ok=True)
+        if self.RESULTS_CSV.exists():
+            self._upgrade_csv_header()
         file_exists = self.RESULTS_CSV.exists()
         with open(self.RESULTS_CSV, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self.CSV_FIELDS)
+            writer = csv.DictWriter(f, fieldnames=self._csv_header())
             if not file_exists:
                 writer.writeheader()
             writer.writerow({k: results.get(k) for k in self.CSV_FIELDS})
+
+    def _csv_header(self) -> list[str]:
+        if not self.RESULTS_CSV.exists():
+            return self.CSV_FIELDS
+        with open(self.RESULTS_CSV, newline="") as f:
+            return next(csv.reader(f), None) or self.CSV_FIELDS
+
+    def _upgrade_csv_header(self) -> None:
+        """Rewrite a CSV from an older version with any missing columns added, empty."""
+        with open(self.RESULTS_CSV, newline="") as f:
+            reader = csv.DictReader(f)
+            header = list(reader.fieldnames or [])
+            rows = list(reader)
+        missing = [k for k in self.CSV_FIELDS if k not in header]
+        if not missing:
+            return
+        with open(self.RESULTS_CSV, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=header + missing)
+            writer.writeheader()
+            writer.writerows(rows)
 
     def run_label(self) -> str:
         """Filesystem-safe label for this run: sanitized model + timestamp."""

@@ -64,7 +64,7 @@ uv run plot_results.py
 - `ocr_evaluation_results.png`: bar chart from `plot_results.py`. It shows the latest run per model. `--all-runs` shows every run.
 - `results/sanity_checks/`: for a fixed set of evenly spaced samples, the input image and a text file with ground truth next to prediction. Use it to check by eye that a model reads the images at all.
 
-All of these are git-ignored.
+All of these are git-ignored. Set `AI_EVAL_RESULTS_DIR` to write them to `$AI_EVAL_RESULTS_DIR/ocr/` instead, for example a checkout of a private results repository.
 
 ## Models tested in October 2026
 
