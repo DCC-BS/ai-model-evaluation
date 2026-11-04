@@ -71,11 +71,14 @@ servers/start_parakeet.sh                 # nvidia/parakeet-tdt-0.6b-v3
 servers/start_nemotron_asr.sh             # nvidia/nemotron-3.5-asr-streaming-0.6b
 servers/start_vibe_voice.sh               # microsoft/VibeVoice
 servers/start_moss_transcribe_diarize.sh  # OpenMOSS-Team/MOSS-Transcribe-Diarize
+servers/start_nemotron_transcribe.sh     # nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-FP8
 ```
 
 Remove a container with `docker rm -f <container>`. `asr-bench` can also start and stop the servers for you (see below).
 
 The two NVIDIA models run on NeMo and have no native vLLM transcription. Their scripts start `servers/nemo_asr_server.py`, a small FastAPI shim that exposes `/v1/models` and `/v1/audio/transcriptions`. The standard `openai_api` pipeline then works unchanged.
+
+`servers/start_nemotron_transcribe.sh` serves the FP8 checkpoint on two GPUs (tensor parallel) with vLLM 0.32.0 and the `nemo_speechlm` plugin, which it installs from a pinned NeMo Speech commit on start. The model only answers `/v1/chat/completions`, so use the `nemotron_transcribe` pipeline. The first start compiles FlashInfer kernels and takes several minutes; the kernels are cached in `~/.cache/flashinfer`.
 
 `servers/start_vibe_voice.sh` clones the upstream repository <https://github.com/microsoft/VibeVoice> into `servers/VibeVoice/` (git-ignored) and mounts it into the container.
 
@@ -96,6 +99,11 @@ uv run asr-eval vibevoice
 # and post_process=moss to strip its [start][Sxx]text[end] markers
 uv run asr-eval openai_api --model "OpenMOSS-Team/MOSS-Transcribe-Diarize" \
   --arg response_format=json --arg temperature=0 --arg post_process=moss
+
+# Nemotron 3.5 Transcribe (chat completions with base64 audio). --arg prompt
+# picks a prompt preset: verbatim, clean (default), translate_de or swiss_de, or
+# takes your own instruction text
+uv run asr-eval nemotron_transcribe --arg prompt=clean
 ```
 
 Common flags: `--api-url` (default `http://localhost:8000/v1`) and `--data-dir` (default `./data`). Pipeline constructor arguments go through repeatable `--arg KEY=VALUE`.
@@ -162,7 +170,7 @@ asr_eval/
 ├── evaluate.py        # asr-eval: single run
 ├── suite.py           # asr-bench: YAML suite
 ├── plot.py            # asr-plot: comparison chart
-└── pipelines/         # openai_api, vibevoice
+└── pipelines/         # openai_api, vibevoice, nemotron_transcribe
 servers/               # Docker start scripts
 scripts/fetch_sample.py
 tests/                 # sample writer and loader tests

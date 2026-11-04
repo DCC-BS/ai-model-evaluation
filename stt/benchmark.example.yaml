@@ -71,3 +71,13 @@ runs:
       script: servers/start_moss_transcribe_diarize.sh
       container: moss-transcribe-diarize-vllm
       ready_timeout: 900
+
+  - name: nemotron-transcribe
+    pipeline: nemotron_transcribe   # chat completions; served via vLLM + NeMo plugin
+    model: nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-FP8
+    args:
+      prompt: swiss_de       # prompt preset: verbatim | clean | translate_de | swiss_de
+    server:
+      script: servers/start_nemotron_transcribe.sh
+      container: nemotron-transcribe-vllm
+      ready_timeout: 1800    # installs NeMo and JIT-compiles FlashInfer kernels on start
