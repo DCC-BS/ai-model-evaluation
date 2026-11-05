@@ -79,11 +79,13 @@ def load_results(csv_path: str, latest_only: bool = True, include_partial: bool 
         idx = df.groupby("model")["evaluation_date"].idxmax()
         df = df.loc[idx].reset_index(drop=True)
 
-    # Use model_key as a short label if available, else derive from model name
-    if "model_key" in df.columns:
-        df["label"] = df["model_key"]
-    else:
-        df["label"] = df["model"].apply(lambda m: m.split("/")[-1])
+    # Label with the model name, not model_key: a key such as "paddleocr" can stand for
+    # different versions over time, and the name carries the version
+    df["label"] = df["model"].apply(lambda m: m.split("/")[-1])
+
+    # Best model first
+    if "CER_raw" in df.columns:
+        df = df.sort_values("CER_raw", kind="stable").reset_index(drop=True)
 
     return df
 
@@ -176,9 +178,9 @@ def plot_evaluation(df: pd.DataFrame, output_path: str, show: bool = False):
         color="gray",
     )
 
-    # Legend
+    # Legend, upper left: the bars are sorted best first, so they are lowest there
     ax.legend(
-        loc="upper right",
+        loc="upper left",
         frameon=True,
         framealpha=0.9,
         fontsize=9,
