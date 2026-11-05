@@ -558,9 +558,18 @@ async def main():
     else:
         models = [MODEL_CONFIGS[args.model]]
 
+    # A run on part of the dataset is a check, not a result: keep it out of the results
+    # CSV and sanity checks, so its scores never sit next to full-set runs
+    sanity_dir = None
+    if args.limit and os.path.basename(args.output) == "ocr_evaluation_results.csv":
+        args.output = os.path.join(os.path.dirname(args.output), "ocr_evaluation_checks.csv")
+        sanity_dir = os.path.join(os.path.dirname(default_sanity_dir()), "sanity_checks_limited")
+        print(f"--limit {args.limit}: writing to {args.output}, not to the results CSV")
+
     evaluator = OCREvaluator(
         concurrency=args.concurrency,
         timeout=args.timeout,
+        sanity_dir=sanity_dir,
     )
 
     # Load dataset once

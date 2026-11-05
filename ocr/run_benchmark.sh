@@ -46,6 +46,7 @@ Model keys:
   nemotron-parse nvidia/Nemotron-3.5-Parse         (port 8008)
   paddleocr-1.6 PaddlePaddle/PaddleOCR-VL-1.6      (port 8009)
   unlimited-ocr-2 baidu/Unlimited-OCR-2            (port 8010, SGLang)
+  unlimited-ocr-2-page  the same, each line on a blank A4 page (same server)
 
 Extra options (forwarded to eval_ocr.py):
   --limit N         Limit dataset samples (for quick testing)
@@ -74,20 +75,22 @@ shift
 EVAL_EXTRA_ARGS=("$@")
 
 # Validate model key early
-VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 unlimited-ocr-2 all"
+VALID_KEYS="olmocr glm-ocr paddleocr deepseek-ocr lighton-ocr dots-ocr lighton-ocr-3 nemotron-parse paddleocr-1.6 unlimited-ocr-2 unlimited-ocr-2-page all"
 if ! echo "$VALID_KEYS" | grep -qw "$MODEL_KEY"; then
     err "Unknown model key: $MODEL_KEY"
     err "Valid keys: $VALID_KEYS"
     exit 1
 fi
+# unlimited-ocr-2-page is a variant of unlimited-ocr-2 and uses its server
+SERVER_KEY="${MODEL_KEY%-page}"
 
 # ---------------------------------------------------------------------------
 # Cleanup trap — always stop containers, even on failure
 # ---------------------------------------------------------------------------
 
 cleanup() {
-    log "Stopping model container(s) for: $MODEL_KEY ..."
-    "${SCRIPT_DIR}/serve_models.sh" stop "$MODEL_KEY" || true
+    log "Stopping model container(s) for: $SERVER_KEY ..."
+    "${SCRIPT_DIR}/serve_models.sh" stop "$SERVER_KEY" || true
 }
 trap cleanup EXIT
 
@@ -95,8 +98,8 @@ trap cleanup EXIT
 # Step 1: Start model container(s)
 # ---------------------------------------------------------------------------
 
-log "=== Step 1/4: Starting model container(s) for: $MODEL_KEY ==="
-"${SCRIPT_DIR}/serve_models.sh" start "$MODEL_KEY"
+log "=== Step 1/4: Starting model container(s) for: $SERVER_KEY ==="
+"${SCRIPT_DIR}/serve_models.sh" start "$SERVER_KEY"
 
 # ---------------------------------------------------------------------------
 # Step 2: Run evaluation
