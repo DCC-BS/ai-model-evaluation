@@ -47,12 +47,13 @@ METRIC_COLORS = {
 # =============================================================================
 
 
-def load_results(csv_path: str, latest_only: bool = True) -> pd.DataFrame:
+def load_results(csv_path: str, latest_only: bool = True, include_partial: bool = False) -> pd.DataFrame:
     """Load evaluation results from CSV.
 
     Args:
         csv_path: Path to the CSV file produced by eval_ocr.py.
         latest_only: If True, keep only the most recent run per model.
+        include_partial: If True, keep runs on fewer samples than the largest run.
 
     Returns:
         DataFrame with one row per model (or per model-run).
@@ -63,6 +64,15 @@ def load_results(csv_path: str, latest_only: bool = True) -> pd.DataFrame:
     for col in METRIC_COLS + ["time_taken_seconds"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Scores on part of the dataset are not comparable with full-set scores
+    if not include_partial and "num_samples" in df.columns:
+        full = df["num_samples"].max()
+        partial = df[df["num_samples"] < full]
+        if not partial.empty:
+            print(f"Skipping {len(partial)} run(s) on fewer than {full} samples: "
+                  f"{', '.join(sorted(set(partial['model_key'] if 'model_key' in df else partial['model'])))}")
+        df = df[df["num_samples"] == full]
 
     if latest_only and "evaluation_date" in df.columns:
         df["evaluation_date"] = pd.to_datetime(df["evaluation_date"])
@@ -216,6 +226,11 @@ def parse_args():
         help="Plot all evaluation runs instead of only the latest per model.",
     )
     parser.add_argument(
+        "--include-partial",
+        action="store_true",
+        help="Also plot runs on fewer samples than the largest run (not comparable).",
+    )
+    parser.add_argument(
         "--show",
         action="store_true",
         help="Display the plot interactively (in addition to saving).",
@@ -232,7 +247,7 @@ def main():
         print("Run eval_ocr.py first to generate evaluation results.")
         raise SystemExit(1)
 
-    df = load_results(str(csv_path), latest_only=not args.all_runs)
+    df = load_results(str(csv_path), latest_only=not args.all_runs, include_partial=args.include_partial)
 
     if df.empty:
         print("No results found in CSV.")
