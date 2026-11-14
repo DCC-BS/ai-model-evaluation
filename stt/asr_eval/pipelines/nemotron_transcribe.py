@@ -9,10 +9,14 @@ generation-loop guardrail applied before scoring.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import io
 import re
+import wave
 
 import httpx
+import numpy as np
 
 from asr_eval.base import ASRPipeline
 
@@ -41,6 +45,12 @@ PROMPTS = {
         "Formatting: punctuation and capitalization; write numbers, dates and "
         "times as digits. Output: transcript only."
     ),
+    # Training prompt of Flurin17/nemotron-3.5-transcribe-swiss-german.
+    "swiss_ft": (
+        "Transcribe this Swiss German speech into Swiss Standard German. Preserve "
+        "the meaning and use Swiss spelling, punctuation and capitalization. "
+        "Output only the transcript."
+    ),
 }
 
 # Generation-loop guardrail from the model card (adapted from Qwen3-ASR,
@@ -61,6 +71,7 @@ class NemotronTranscribePipeline(ASRPipeline):
         prompt: str = "clean",
         max_tokens: str | int = 8192,
         timeout: str | float = 3600,
+        chunk_s: str | float = 0,
         **kwargs,
     ):
         # Tolerate shared kwargs (e.g. ``language``) set in a suite's defaults;
@@ -69,10 +80,22 @@ class NemotronTranscribePipeline(ASRPipeline):
         self.prompt = PROMPTS.get(prompt, prompt)
         self.max_tokens = int(max_tokens)
         self.timeout = float(timeout)
+        # 0 sends each file whole. A positive value cuts the audio into pieces
+        # of at most that many seconds, for models trained on short clips.
+        self.chunk_s = float(chunk_s)
 
     async def transcribe(self, audio_path: str) -> str:
-        with open(audio_path, "rb") as f:
-            audio_b64 = base64.b64encode(f.read()).decode("utf-8")
+        if self.chunk_s <= 0:
+            with open(audio_path, "rb") as f:
+                return await self._transcribe_wav(f.read(), audio_path)
+        chunks = split_wav(audio_path, self.chunk_s)
+        texts = await asyncio.gather(
+            *(self._transcribe_wav(c, f"{audio_path}#{i}") for i, c in enumerate(chunks))
+        )
+        return re.sub(r"\s+", " ", " ".join(texts)).strip()
+
+    async def _transcribe_wav(self, wav_bytes: bytes, label: str) -> str:
+        audio_b64 = base64.b64encode(wav_bytes).decode("utf-8")
 
         payload = {
             "model": self.model,
@@ -101,7 +124,7 @@ class NemotronTranscribePipeline(ASRPipeline):
             choice = response.json()["choices"][0]
 
         if choice.get("finish_reason") == "length":
-            print(f"WARNING: hit max_tokens={self.max_tokens} for {audio_path}")
+            print(f"WARNING: hit max_tokens={self.max_tokens} for {label}")
         return self._clean(choice["message"].get("content") or "")
 
     @staticmethod
@@ -110,3 +133,39 @@ class NemotronTranscribePipeline(ASRPipeline):
         text = _BLOCK_RUN.sub(lambda m: m.group(1), text)
         text = _SPECIAL_TOKEN.sub(" ", text)
         return re.sub(r"\s+", " ", text).strip()
+
+
+def split_wav(audio_path: str, max_s: float, search_s: float = 5.0, frame_s: float = 0.1) -> list[bytes]:
+    """Cut a 16-bit PCM WAV into pieces of at most ``max_s`` seconds.
+
+    Each cut goes at the quietest ``frame_s`` frame (lowest RMS) in the last
+    ``search_s`` seconds before the limit, so cuts land in pauses where there
+    are any. Returns each piece as WAV bytes with the source's format.
+    """
+    with wave.open(audio_path, "rb") as w:
+        if w.getsampwidth() != 2:
+            raise ValueError(f"{audio_path}: only 16-bit PCM is supported")
+        params = w.getparams()
+        pcm = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2")
+    channels, sr = params.nchannels, params.framerate
+    pcm = pcm.reshape(-1, channels)
+    mono = pcm.mean(axis=1)
+
+    max_n, search_n, frame_n = int(max_s * sr), int(search_s * sr), int(frame_s * sr)
+    cuts, start = [0], 0
+    while len(mono) - start > max_n:
+        lo, hi = start + max_n - search_n, start + max_n
+        frames = mono[lo:hi][: (hi - lo) // frame_n * frame_n].reshape(-1, frame_n)
+        quietest = int(np.argmin(np.sqrt((frames**2).mean(axis=1))))
+        start = lo + quietest * frame_n + frame_n // 2
+        cuts.append(start)
+    cuts.append(len(mono))
+
+    pieces = []
+    for a, b in zip(cuts, cuts[1:]):
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as out:
+            out.setparams(params)
+            out.writeframes(pcm[a:b].tobytes())
+        pieces.append(buf.getvalue())
+    return pieces
