@@ -1,0 +1,54 @@
+# Swiss German fine-tunes. Run with:
+#   asr-bench benchmark.swiss-german.yaml --data-dir <your data>
+#
+# Most of these models were trained on clips of at most 30 s. vLLM cuts
+# longer audio for Whisper and Cohere by itself; for Nemotron the pipeline
+# does it (chunk_s). Parakeet transcribes the whole file.
+# The Flurin17 models are CC BY-NC 4.0.
+
+defaults:
+  api_url: http://localhost:8000/v1
+  data_dir: ./data
+  args:
+    language: de
+
+runs:
+  - name: whisper-large-stt4sg
+    pipeline: openai_api
+    model: matildecs/whisper-large-stt4sg
+    server:
+      script: servers/start_whisper_stt4sg.sh
+      container: whisper-stt4sg-vllm
+
+  - name: whisper-large-v3-turbo-swiss-german
+    pipeline: openai_api
+    model: Flurin17/whisper-large-v3-turbo-swiss-german
+    server:
+      script: servers/start_whisper_turbo_swiss.sh
+      container: whisper-turbo-swiss-vllm
+
+  - name: cohere-transcribe-swiss-german
+    pipeline: openai_api
+    model: Flurin17/cohere-transcribe-swiss-german
+    server:
+      script: servers/start_cohere_swiss.sh
+      container: cohere-swiss-hf
+
+  - name: parakeet-tdt-0.6b-v3-swiss-german
+    pipeline: openai_api   # served via the NeMo OpenAI shim
+    model: Flurin17/parakeet-tdt-0.6b-v3-swiss-german
+    server:
+      script: servers/start_parakeet_swiss.sh
+      container: parakeet-swiss-nemo
+
+  - name: nemotron-3.5-transcribe-swiss-german
+    pipeline: nemotron_transcribe
+    model: Flurin17/nemotron-3.5-transcribe-swiss-german
+    args:
+      prompt: swiss_ft     # the model's training prompt
+      chunk_s: 30
+      max_tokens: 512
+    server:
+      script: servers/start_nemotron_transcribe_swiss.sh
+      container: nemotron-transcribe-swiss-vllm
+      ready_timeout: 2400  # installs NeMo, loads 67 GB and quantizes on start
