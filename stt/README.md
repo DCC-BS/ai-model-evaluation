@@ -79,9 +79,12 @@ servers/start_whisper_turbo_swiss.sh      # Flurin17/whisper-large-v3-turbo-swis
 servers/start_cohere_swiss.sh             # Flurin17/cohere-transcribe-swiss-german
 servers/start_parakeet_swiss.sh           # Flurin17/parakeet-tdt-0.6b-v3-swiss-german
 servers/start_nemotron_transcribe_swiss.sh  # Flurin17/nemotron-3.5-transcribe-swiss-german
+servers/start_fluid_speech_pro.sh         # FluidVoice-Labs/fluid-speech-pro
 ```
 
 The Whisper and Cohere fine-tunes run on vLLM's own transcription route, which cuts audio longer than 30 seconds. The Nemotron fine-tune is published in BF16 only (67 GB); its script has vLLM quantize it to FP8 while loading so it fits two 24 GB GPUs. It was trained on clips of at most 30 seconds, so run it with `--arg chunk_s=30`: the `nemotron_transcribe` pipeline then cuts each file at the quietest point before every 30-second mark. `--arg prompt=swiss_ft` selects its training prompt.
+
+`FluidVoice-Labs/fluid-speech-pro` is Parakeet TDT 0.6B v3 with one extra encoder block that `ASRModel.from_pretrained` does not know. Its script sets `NEMO_LOADER_FILE=fluid_speech.py`, so the NeMo shim loads it with the loader from the model repository.
 
 Remove a container with `docker rm -f <container>`. `asr-bench` can also start and stop the servers for you (see below).
 

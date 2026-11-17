@@ -26,6 +26,11 @@ import uvicorn
 from fastapi import FastAPI, File, Form, UploadFile
 
 MODEL_NAME = os.environ["NEMO_MODEL"]
+# Some checkpoints need their own loader from the model repository, e.g.
+# fluid_speech.py for FluidVoice-Labs/fluid-speech-pro, which adds a block
+# that ASRModel.from_pretrained does not know. Set NEMO_LOADER_FILE to that
+# file; it must define load(model_id, map_location=...).
+LOADER_FILE = os.environ.get("NEMO_LOADER_FILE")
 TARGET_SR = 16000
 
 app = FastAPI()
@@ -64,6 +69,18 @@ def _install_prompt_patch() -> None:
     cls._get_prompt_index_for_cut = _prompt_index_for_cut
 
 
+def _load_with_repo_loader():
+    import importlib.util
+
+    from huggingface_hub import hf_hub_download
+
+    path = hf_hub_download(MODEL_NAME, LOADER_FILE)
+    spec = importlib.util.spec_from_file_location("repo_loader", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load(MODEL_NAME, map_location="cuda")
+
+
 @app.on_event("startup")
 def _load() -> None:
     # Loads before uvicorn starts serving, so /v1/models stays unreachable
@@ -71,7 +88,10 @@ def _load() -> None:
     # polls for.
     global _model, _is_prompt_model
     print(f"Loading NeMo ASR model: {MODEL_NAME}", flush=True)
-    _model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
+    if LOADER_FILE:
+        _model = _load_with_repo_loader()
+    else:
+        _model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
     _model.eval()
     _is_prompt_model = hasattr(_model, "num_prompts")
     if _is_prompt_model:
