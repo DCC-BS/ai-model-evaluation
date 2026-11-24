@@ -3,7 +3,7 @@ import wave
 
 import numpy as np
 
-from asr_eval.pipelines.nemotron_transcribe import split_wav
+from asr_eval.audio import split_wav
 
 SR = 16000
 
