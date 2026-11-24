@@ -4,7 +4,8 @@
 # Most of these models were trained on clips of at most 30 s. vLLM cuts
 # longer audio for Whisper and Cohere by itself; for Nemotron the pipeline
 # does it (chunk_s). Parakeet transcribes the whole file.
-# The Flurin17 models are CC BY-NC 4.0.
+# The Flurin17 models are CC BY-NC 4.0. Rumble-2-Flash is Apache 2.0 and
+# Qwen3-ASR based; its pipeline cuts long files too (chunk_s).
 
 defaults:
   api_url: http://localhost:8000/v1
@@ -52,3 +53,12 @@ runs:
       script: servers/start_nemotron_transcribe_swiss.sh
       container: nemotron-transcribe-swiss-vllm
       ready_timeout: 2400  # installs NeMo, loads 67 GB and quantizes on start
+
+  - name: rumble-2-flash
+    pipeline: qwen3_asr_chat
+    model: Reson8/Rumble-2-Flash
+    args:
+      chunk_s: 30          # scored slightly better than whole files
+    server:
+      script: servers/start_rumble_2_flash.sh
+      container: rumble-2-flash-vllm

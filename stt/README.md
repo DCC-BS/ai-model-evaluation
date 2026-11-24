@@ -80,11 +80,14 @@ servers/start_cohere_swiss.sh             # Flurin17/cohere-transcribe-swiss-ger
 servers/start_parakeet_swiss.sh           # Flurin17/parakeet-tdt-0.6b-v3-swiss-german
 servers/start_nemotron_transcribe_swiss.sh  # Flurin17/nemotron-3.5-transcribe-swiss-german
 servers/start_fluid_speech_pro.sh         # FluidVoice-Labs/fluid-speech-pro
+servers/start_rumble_2_flash.sh           # Reson8/Rumble-2-Flash
 ```
 
 The Whisper and Cohere fine-tunes run on vLLM's own transcription route, which cuts audio longer than 30 seconds. The Nemotron fine-tune is published in BF16 only (67 GB); its script has vLLM quantize it to FP8 while loading so it fits two 24 GB GPUs. It was trained on clips of at most 30 seconds, so run it with `--arg chunk_s=30`: the `nemotron_transcribe` pipeline then cuts each file at the quietest point before every 30-second mark. `--arg prompt=swiss_ft` selects its training prompt.
 
 `FluidVoice-Labs/fluid-speech-pro` is Parakeet TDT 0.6B v3 with one extra encoder block that `ASRModel.from_pretrained` does not know. Its script sets `NEMO_LOADER_FILE=fluid_speech.py`, so the NeMo shim loads it with the loader from the model repository.
+
+`Reson8/Rumble-2-Flash` is a Qwen3-ASR 0.6B fine-tune. It takes its options (`language`, `digits`, `filler`, `verbatim`) through the chat template, so use the `qwen3_asr_chat` pipeline, which sends them as `chat_template_kwargs` to `/v1/chat/completions`. Its script raises `--max-num-batched-tokens` to 8192: vLLM sizes the audio encoder cache from it, and the default rejects files longer than about 2.5 minutes.
 
 Remove a container with `docker rm -f <container>`. `asr-bench` can also start and stop the servers for you (see below).
 
@@ -116,6 +119,10 @@ uv run asr-eval openai_api --model "OpenMOSS-Team/MOSS-Transcribe-Diarize" \
 # picks a prompt preset: verbatim, clean (default), translate_de or swiss_de, or
 # takes your own instruction text
 uv run asr-eval nemotron_transcribe --arg prompt=clean
+
+# Qwen3-ASR fine-tunes with chat-template options. asr_language (default
+# German) forces the language; digits, filler and verbatim are sent only when set
+uv run asr-eval qwen3_asr_chat --model Reson8/Rumble-2-Flash --arg chunk_s=30
 ```
 
 Common flags: `--api-url` (default `http://localhost:8000/v1`) and `--data-dir` (default `./data`). Pipeline constructor arguments go through repeatable `--arg KEY=VALUE`.
@@ -184,7 +191,8 @@ asr_eval/
 ├── evaluate.py        # asr-eval: single run
 ├── suite.py           # asr-bench: YAML suite
 ├── plot.py            # asr-plot: comparison chart
-└── pipelines/         # openai_api, vibevoice, nemotron_transcribe
+├── audio.py           # split_wav: cut long files at quiet points
+└── pipelines/         # openai_api, vibevoice, nemotron_transcribe, qwen3_asr_chat
 servers/               # Docker start scripts
 scripts/fetch_sample.py
 tests/                 # sample writer and loader tests
